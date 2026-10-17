@@ -15,12 +15,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Inicialização de estado para os artigos guardados
 if "favoritos" not in st.session_state:
     st.session_state.favoritos = []
 
 # =====================================================================
-# CATÁLOGO DE FEEDS (ORDEM DE PRIORIDADE)
+# CATÁLOGO DE FEEDS CORRIGIDO (FEEDS ATIVOS EM TEMPO REAL)
 # =====================================================================
 FEEDS = {
     "🏎️ Carros & Motores": [
@@ -38,9 +37,10 @@ FEEDS = {
         {"nome": "Grande Prêmio", "url": "https://www.grandepremio.com.br/feed/", "tag": "PADDOCK"},
     ],
     "📍 Cotidiano Local (SP)": [
-        {"nome": "G1 São Paulo", "url": "https://g1.globo.com/rss/g1/sao-paulo/", "tag": "SP REGIONAL"},
-        {"nome": "UOL Cotidiano / Trânsito", "url": "https://noticias.uol.com.br/cotidiano/transito/index.xml", "tag": "MOBILIDADE"},
-        {"nome": "R7 Notícias SP", "url": "https://noticias.r7.com/sao-paulo/feed.xml", "tag": "ESTADO SP"},
+        # Feeds ativos e em tempo real de São Paulo (Folha, R7 e Metrópoles)
+        {"nome": "Folha SP / Cotidiano", "url": "https://feeds.folha.uol.com.br/cotidiano/rss091.xml", "tag": "CIDADE & TRÂNSITO"},
+        {"nome": "Folha de S.Paulo", "url": "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", "tag": "EM CIMA DA HORA"},
+        {"nome": "R7 Notícias SP", "url": "https://noticias.r7.com/sao-paulo/feed.xml", "tag": "SP REGIONAL"},
     ],
     "🌐 Cotidiano Global": [
         {"nome": "BBC News Brasil", "url": "https://feeds.bbci.co.uk/portuguese/rss.xml", "tag": "BBC GLOBAL"},
@@ -52,6 +52,7 @@ FEEDS = {
         {"nome": "G1 Saúde & Bem-Estar", "url": "https://g1.globo.com/rss/g1/saude/", "tag": "LONGEVIDADE"},
     ],
     "🏛️ Política & Poder": [
+        {"nome": "Folha Política", "url": "https://feeds.folha.uol.com.br/poder/rss091.xml", "tag": "PODER & BASTIDORES"},
         {"nome": "Poder360", "url": "https://www.poder360.com.br/feed/", "tag": "BASTIDORES"},
         {"nome": "Agência Brasil - Política", "url": "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml", "tag": "BRASÍLIA"},
     ],
@@ -70,7 +71,10 @@ def fetch_sp_weather():
         res = requests.get(url, timeout=4).json()
         cur = res.get("current", {})
         code = cur.get("weather_code", 0)
-        icones = {0: "☀️ Céu Limpo", 1: "🌤️ Pred. Limpo", 2: "⛅ Parc. Nublado", 3: "☁️ Nublado", 51: "🌦️ Garoa", 61: "🌧️ Chuva", 95: "⛈️ Tempestade"}
+        icones = {
+            0: "☀️ Céu Limpo", 1: "🌤️ Pred. Limpo", 2: "⛅ Parc. Nublado", 3: "☁️ Nublado",
+            45: "🌫️ Nevoeiro", 51: "🌦️ Garoa", 61: "🌧️ Chuva", 95: "⛈️ Tempestade"
+        }
         condicao = icones.get(code, "🌤️ Estável")
         return {
             "temp": round(cur.get("temperature_2m", 0), 1),
@@ -112,7 +116,6 @@ def extract_image_url(entry):
 
 
 def generate_tldr(texto: str, titulo: str) -> list:
-    """Gera 3 pontos-chave estruturados a partir do conteúdo e título."""
     limpo = re.sub(r"\s+", " ", texto).strip()
     frases = [f.strip() for f in re.split(r"[.!?]", limpo) if len(f.strip()) > 18]
     
@@ -124,7 +127,7 @@ def generate_tldr(texto: str, titulo: str) -> list:
     if len(frases) >= 2:
         pontos.append(f"**Detalhe Adicional:** {frases[1]}.")
     else:
-        pontos.append("**Ação:** Aceda à reportagem completa na fonte original para acompanhar o desenvolvimento.")
+        pontos.append("**Ação:** Aceda à reportagem completa na fonte oficial para conferir a cobertura na íntegra.")
         
     return pontos[:3]
 
@@ -137,6 +140,13 @@ def fetch_feed_articles(feed_list):
             parsed = feedparser.parse(item["url"])
             for entry in parsed.entries[:9]:
                 data_publicacao = "Hoje"
+                timestamp = 0
+                
+                if hasattr(entry, "published_parsed") and entry.published_parsed:
+                    timestamp = datetime(*entry.published_parsed[:6]).timestamp()
+                elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
+                    timestamp = datetime(*entry.updated_parsed[:6]).timestamp()
+
                 if hasattr(entry, "published"):
                     data_publicacao = entry.published[:16]
                 elif hasattr(entry, "updated"):
@@ -158,11 +168,15 @@ def fetch_feed_articles(feed_list):
                     "tag": item["tag"],
                     "imagem": imagem,
                     "data": data_publicacao,
+                    "timestamp": timestamp,
                     "resumo": resumo_curto,
                     "resumo_completo": resumo if resumo else entry.title,
                 })
         except Exception:
             continue
+
+    # Ordena para garantir as notícias mais recentes primeiro
+    artigos.sort(key=lambda x: x["timestamp"], reverse=True)
     return artigos
 
 
@@ -180,7 +194,6 @@ def inject_custom_css():
     #MainMenu, footer, header { visibility: hidden; }
     .block-container { padding-top: 0.8rem !important; max-width: 100% !important; padding-left: 2rem !important; padding-right: 2rem !important; }
 
-    /* Topo Hero */
     .hero-wrap { 
         background: linear-gradient(135deg, #0D0010 0%, #07070F 55%, #001015 100%); 
         border-bottom: 2px solid #00D2BE; 
@@ -214,7 +227,6 @@ def inject_custom_css():
         margin: 0 0 0.3rem 0; 
     }
 
-    /* Widget de Clima no Topo */
     .wx-widget {
         background: #0F0F1C;
         border: 1px solid #1C1C2E;
@@ -232,7 +244,6 @@ def inject_custom_css():
         line-height: 1;
     }
 
-    /* Ticker de Notícia Urgente */
     .breaking-ticker {
         background: #0A0A16;
         border-left: 4px solid #FF8000;
@@ -262,7 +273,6 @@ def inject_custom_css():
     }
     .breaking-text:hover { color: #00D2BE; }
 
-    /* Cartão de Notícia */
     .news-card {
         background: #0F0F1C;
         border: 1px solid #1C1C2E;
@@ -363,7 +373,6 @@ def inject_custom_css():
 # RENDERIZADOR DE CARTÕES
 # =====================================================================
 def render_article_card(art: dict, key_prefix: str):
-    """Renderiza um artigo com imagem, link direto, botão de salvar e resumo TL;DR."""
     card_html = f"""<div class="news-card">
 <div class="news-img-box">
 <img src="{art['imagem']}" class="news-img" loading="lazy" onerror="this.src='{FALLBACK_IMG}';">
@@ -383,7 +392,6 @@ def render_article_card(art: dict, key_prefix: str):
 </div>"""
     st.markdown(card_html, unsafe_allow_html=True)
 
-    # Painel interativo inferior: Guardar + Resumo
     col_btn1, col_btn2 = st.columns([1, 1])
     links_guardados = [a["link"] for a in st.session_state.favoritos]
     is_saved = art["link"] in links_guardados
@@ -399,7 +407,7 @@ def render_article_card(art: dict, key_prefix: str):
 
     with col_btn2:
         with st.popover("⚡ TL;DR"):
-            st.markdown(f"#### Resumo Estruturado")
+            st.markdown("#### Resumo Estruturado")
             pontos = generate_tldr(art["resumo_completo"], art["titulo"])
             for p in pontos:
                 st.markdown(f"• {p}")
@@ -413,7 +421,6 @@ def main():
     inject_custom_css()
     wx = fetch_sp_weather()
 
-    # HERO COM TELEMETRIA METEOROLÓGICA INTEGRADA
     st.markdown(f"""
     <div class="hero-wrap">
         <div>
@@ -433,7 +440,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # BREAKING NEWS TICKER (Carrega o feed prioritário de SP para a manchete de última hora)
+    # BREAKING NEWS TICKER (Puxa a primeira matéria mais recente da aba de SP)
     artigos_sp = fetch_feed_articles(FEEDS["📍 Cotidiano Local (SP)"])
     if artigos_sp:
         ultima_hora = artigos_sp[0]
@@ -444,18 +451,15 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-    # BARRA DE PESQUISA
     filtro = st.text_input(
         "Pesquisar notícias...",
         placeholder="Filtrar por palavras-chave em qualquer categoria (Ex: Porsche, Ferrari, IA, Tarcísio, Hamilton, Selic...)",
         label_visibility="collapsed",
     )
 
-    # ABAS DO PORTAL: 7 Categorias Originais + 1 Aba de Artigos Guardados
     categorias = list(FEEDS.keys()) + [f"⭐ Guardados ({len(st.session_state.favoritos)})"]
     abas = st.tabs(categorias)
 
-    # RENDERIZAÇÃO DAS 7 ABAS DE CONTEÚDO
     for i, categoria in enumerate(FEEDS.keys()):
         with abas[i]:
             fontes = FEEDS[categoria]
@@ -480,7 +484,6 @@ def main():
                     render_article_card(art, key_prefix=f"tab_{i}")
                     st.markdown("<div style='margin-bottom: 0.6rem;'></div>", unsafe_allow_html=True)
 
-    # ABA DE ARTIGOS GUARDADOS (FAVORITOS)
     with abas[-1]:
         if not st.session_state.favoritos:
             st.info("Ainda não guardou nenhum artigo. Clique em '☆ Guardar' em qualquer notícia para ler mais tarde.")
