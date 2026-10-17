@@ -88,10 +88,8 @@ def fetch_sp_weather():
 # =====================================================================
 def get_sp_rodizio_info():
     agora = datetime.now()
-    dia_semana = agora.weekday()  # 0: Seg, 1: Ter, 2: Qua, 3: Qui, 4: Sex, 5: Sáb, 6: Dom
-    hora = agora.hour
-    minuto = agora.minute
-    minutos_dia = hora * 60 + minuto
+    dia_semana = agora.weekday()
+    minutos_dia = agora.hour * 60 + agora.minute
 
     tabela_rodizio = {
         0: ("1 e 2", "Segunda-feira"),
@@ -110,7 +108,7 @@ def get_sp_rodizio_info():
             "horario": "Rodízio suspenso aos sábados e domingos"
         }
 
-    placas, dia_nome = tabela_rodizio[dia_semana]
+    placas, _ = tabela_rodizio[dia_semana]
     manha_ativa = (7 * 60) <= minutos_dia < (10 * 60)
     tarde_ativa = (17 * 60) <= minutos_dia < (20 * 60)
     ativo_agora = manha_ativa or tarde_ativa
@@ -384,7 +382,6 @@ def inject_custom_css():
     .traffic-val { font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; color: #FFFFFF; line-height: 1.1; margin: 0.2rem 0; }
     .traffic-sub { font-size: 0.78rem; color: #94A3B8; }
 
-    /* Pílulas de Metrô */
     .metro-badge {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 4px 8px; border-radius: 4px;
@@ -392,6 +389,57 @@ def inject_custom_css():
         margin: 3px; background: #07070F; border: 1px solid #1C1C2E;
     }
     .metro-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* =================================================================
+       CORREÇÃO DO POPOVER (TL;DR) - TEMA ESCURO COM CONTRASTE NÍTIDO
+       ================================================================= */
+    div[data-testid="stPopoverBody"] {
+        background-color: #0F0F1C !important;
+        border: 1px solid #00D2BE !important;
+        border-radius: 10px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7) !important;
+        color: #FFFFFF !important;
+        padding: 1.2rem !important;
+    }
+    div[data-testid="stPopoverBody"] h4 {
+        color: #FFFFFF !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.8rem !important;
+        border-bottom: 1px solid #1C1C2E !important;
+        padding-bottom: 0.4rem !important;
+    }
+    div[data-testid="stPopoverBody"] p,
+    div[data-testid="stPopoverBody"] span,
+    div[data-testid="stPopoverBody"] li {
+        color: #E2E8F0 !important;
+        font-size: 0.88rem !important;
+        line-height: 1.4 !important;
+    }
+    div[data-testid="stPopoverBody"] strong {
+        color: #00D2BE !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.05em !important;
+    }
+    div[data-testid="stPopoverBody"] a,
+    div[data-testid="stPopoverBody"] button {
+        background-color: #07070F !important;
+        border: 1px solid #1C1C2E !important;
+        color: #00D2BE !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        border-radius: 6px !important;
+        transition: all 0.2s !important;
+    }
+    div[data-testid="stPopoverBody"] a:hover,
+    div[data-testid="stPopoverBody"] button:hover {
+        border-color: #00D2BE !important;
+        color: #00E676 !important;
+        background-color: #141428 !important;
+    }
 
     button[data-baseweb="tab"] { font-family: 'Rajdhani', sans-serif !important; font-size: 1rem !important; font-weight: 700 !important; color: #CBD5E1 !important; }
     button[data-baseweb="tab"][aria-selected="true"] { color: #00D2BE !important; border-bottom-color: #00D2BE !important; }
@@ -525,7 +573,7 @@ def main():
                     render_article_card(art, key_prefix=f"tab_{i}", idx=idx)
 
     # =================================================================
-    # ABA NOVA: 🚦 TRÂNSITO & MOBILIDADE SP
+    # ABA: 🚦 TRÂNSITO & MOBILIDADE SP
     # =================================================================
     with abas[4]:
         st.markdown("""
@@ -581,14 +629,12 @@ def main():
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # MAPA AO VIVO DO WAZE (SÃO PAULO)
         st.markdown("""
         <div style="font-family:'Rajdhani', sans-serif; font-size:1.1rem; font-weight:700; color:#CBD5E1; margin-bottom:0.4rem;">
             🗺️ WAZE LIVE TRAFFIC MAP · SÃO PAULO
         </div>
         """, unsafe_allow_html=True)
 
-        # Iframe interativo oficial do Waze com tráfego em tempo real
         waze_iframe = """
         <iframe 
             src="https://embed.waze.com/iframe?zoom=12&lat=-23.5505&lon=-46.6333&ct=livemap" 
@@ -600,7 +646,6 @@ def main():
         """
         components.html(waze_iframe, height=530)
 
-        # Monitor de Corredores e Rodovias
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("""
         <div style="font-family:'Rajdhani', sans-serif; font-size:1.1rem; font-weight:700; color:#CBD5E1; margin-bottom:0.6rem;">
