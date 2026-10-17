@@ -19,7 +19,7 @@ if "favoritos" not in st.session_state:
     st.session_state.favoritos = []
 
 # =====================================================================
-# CATÁLOGO DE FEEDS CORRIGIDO (FEEDS ATIVOS EM TEMPO REAL)
+# CATÁLOGO DE FEEDS ATIVOS
 # =====================================================================
 FEEDS = {
     "🏎️ Carros & Motores": [
@@ -37,7 +37,6 @@ FEEDS = {
         {"nome": "Grande Prêmio", "url": "https://www.grandepremio.com.br/feed/", "tag": "PADDOCK"},
     ],
     "📍 Cotidiano Local (SP)": [
-        # Feeds ativos e em tempo real de São Paulo (Folha, R7 e Metrópoles)
         {"nome": "Folha SP / Cotidiano", "url": "https://feeds.folha.uol.com.br/cotidiano/rss091.xml", "tag": "CIDADE & TRÂNSITO"},
         {"nome": "Folha de S.Paulo", "url": "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", "tag": "EM CIMA DA HORA"},
         {"nome": "R7 Notícias SP", "url": "https://noticias.r7.com/sao-paulo/feed.xml", "tag": "SP REGIONAL"},
@@ -135,10 +134,18 @@ def generate_tldr(texto: str, titulo: str) -> list:
 @st.cache_data(ttl=600)
 def fetch_feed_articles(feed_list):
     artigos = []
+    links_vistos = set()
+
     for item in feed_list:
         try:
             parsed = feedparser.parse(item["url"])
             for entry in parsed.entries[:9]:
+                link = entry.get("link", "").strip()
+                if not link or link in links_vistos:
+                    continue
+
+                links_vistos.add(link)
+
                 data_publicacao = "Hoje"
                 timestamp = 0
                 
@@ -161,21 +168,20 @@ def fetch_feed_articles(feed_list):
                 resumo_curto = (resumo[:115] + "...") if len(resumo) > 115 else resumo
 
                 artigos.append({
-                    "id": entry.link,
-                    "titulo": html.unescape(entry.title),
-                    "link": entry.link,
+                    "id": link,
+                    "titulo": html.unescape(entry.get("title", "Sem título")),
+                    "link": link,
                     "fonte": item["nome"],
                     "tag": item["tag"],
                     "imagem": imagem,
                     "data": data_publicacao,
                     "timestamp": timestamp,
                     "resumo": resumo_curto,
-                    "resumo_completo": resumo if resumo else entry.title,
+                    "resumo_completo": resumo if resumo else entry.get("title", ""),
                 })
         except Exception:
             continue
 
-    # Ordena para garantir as notícias mais recentes primeiro
     artigos.sort(key=lambda x: x["timestamp"], reverse=True)
     return artigos
 
@@ -370,9 +376,9 @@ def inject_custom_css():
 
 
 # =====================================================================
-# RENDERIZADOR DE CARTÕES
+# RENDERIZADOR DE CARTÕES (COM CHAVE ÚNICA GARANTIDA)
 # =====================================================================
-def render_article_card(art: dict, key_prefix: str):
+def render_article_card(art: dict, key_prefix: str, idx: int):
     card_html = f"""<div class="news-card">
 <div class="news-img-box">
 <img src="{art['imagem']}" class="news-img" loading="lazy" onerror="this.src='{FALLBACK_IMG}';">
@@ -398,7 +404,8 @@ def render_article_card(art: dict, key_prefix: str):
 
     with col_btn1:
         rotulo_btn = "⭐ Guardado" if is_saved else "☆ Guardar"
-        if st.button(rotulo_btn, key=f"fav_{key_prefix}_{art['link']}", use_container_width=True):
+        unique_btn_key = f"btn_fav_{key_prefix}_{idx}"
+        if st.button(rotulo_btn, key=unique_btn_key, use_container_width=True):
             if is_saved:
                 st.session_state.favoritos = [a for a in st.session_state.favoritos if a["link"] != art["link"]]
             else:
@@ -440,7 +447,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # BREAKING NEWS TICKER (Puxa a primeira matéria mais recente da aba de SP)
     artigos_sp = fetch_feed_articles(FEEDS["📍 Cotidiano Local (SP)"])
     if artigos_sp:
         ultima_hora = artigos_sp[0]
@@ -481,7 +487,7 @@ def main():
             for idx, art in enumerate(artigos):
                 col = colunas[idx % 3]
                 with col:
-                    render_article_card(art, key_prefix=f"tab_{i}")
+                    render_article_card(art, key_prefix=f"tab_{i}", idx=idx)
                     st.markdown("<div style='margin-bottom: 0.6rem;'></div>", unsafe_allow_html=True)
 
     with abas[-1]:
@@ -492,7 +498,7 @@ def main():
             for idx, art in enumerate(st.session_state.favoritos):
                 col = colunas_fav[idx % 3]
                 with col:
-                    render_article_card(art, key_prefix="fav_tab")
+                    render_article_card(art, key_prefix="fav_tab", idx=idx)
                     st.markdown("<div style='margin-bottom: 0.6rem;'></div>", unsafe_allow_html=True)
 
 
