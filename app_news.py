@@ -37,9 +37,12 @@ FEEDS = {
         {"nome": "Grande Prêmio", "url": "https://www.grandepremio.com.br/feed/", "tag": "PADDOCK"},
     ],
     "📍 Cotidiano Local (SP)": [
-        {"nome": "Folha SP / Cotidiano", "url": "https://feeds.folha.uol.com.br/cotidiano/rss091.xml", "tag": "CIDADE & TRÂNSITO"},
-        {"nome": "Folha de S.Paulo", "url": "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", "tag": "EM CIMA DA HORA"},
-        {"nome": "R7 Notícias SP", "url": "https://noticias.r7.com/sao-paulo/feed.xml", "tag": "SP REGIONAL"},
+        # G1 SP Oficial e Ativo (com imagens em media:content e enclosure)
+        {"nome": "G1 São Paulo", "url": "https://g1.globo.com/dynamo/sao-paulo/rss2.xml", "tag": "SP REGIONAL"},
+        # Metrópoles São Paulo (cobertura local da capital e trânsito com fotos reais)
+        {"nome": "Metrópoles SP", "url": "https://www.metropoles.com/sao-paulo/feed", "tag": "CIDADE & TRÂNSITO"},
+        # R7 Notícias SP (com fotos)
+        {"nome": "R7 Notícias SP", "url": "https://noticias.r7.com/sao-paulo/feed.xml", "tag": "ESTADO SP"},
     ],
     "🌐 Cotidiano Global": [
         {"nome": "BBC News Brasil", "url": "https://feeds.bbci.co.uk/portuguese/rss.xml", "tag": "BBC GLOBAL"},
